@@ -1,2 +1,4 @@
 local/
 raw_data/
+tmp*
+*.pyc
