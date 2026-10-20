@@ -1,4 +1,5 @@
 local/
 raw_data/
 tmp*
+__pycache__/
 *.pyc

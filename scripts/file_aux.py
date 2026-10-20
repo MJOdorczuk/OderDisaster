@@ -1,6 +1,9 @@
 from contextlib import ExitStack
 import numpy as np
 import rasterio
+import os
+import pandas as pd
+import geopandas as gpd
 from rasterio.enums import Resampling
 from rasterio.merge import merge
 from rasterio.vrt import WarpedVRT
@@ -9,8 +12,6 @@ from shapely.geometry import box
 from shapely.ops import unary_union
 from rasterio.windows import Window
 from rasterio.windows import transform as window_transform
-
-
 
 def create_masked_band_mosaic(
     input_files,
@@ -223,3 +224,57 @@ def process_resolution_for_aoi(
         band_descriptions=bands,
         nodata_value=nodata_value
     )
+
+def sample_points(data_dir, line_geometry, sample_spacing, sample_class=6):
+    stack_files10 = [data_dir / segment / "10m_Stack.tif" for segment in os.listdir(data_dir)]
+    stack_files20 = [data_dir / segment / "20m_Stack.tif" for segment in os.listdir(data_dir)]
+    stack_files = zip(stack_files10, stack_files20)
+
+    band_names10 = ["B02 Blue", "B03 Green", "B04 Red", "B08 NIR"]
+    band_names20 = ["B05 RedEdge1", "B11 SWIR1", "SCL SceneClassification"]
+
+    line_length = line_geometry.length
+
+    distances = np.arange(0, line_length + sample_spacing, sample_spacing)
+    distances = np.clip(distances, 0, line_length)
+    distances = np.unique(distances)
+    sample_points = [line_geometry.interpolate(distance) for distance in distances]
+    coordinates = [(point.x, point.y) for point in sample_points]
+
+    sampled_values10 = None
+    sampled_values20 = None
+
+    for stack_file10, stack_file20 in stack_files:
+        with rasterio.open(stack_file10) as src10:
+            with rasterio.open(stack_file20) as src20:
+
+                local_sampled_values10 = np.array(list(src10.sample(coordinates))).astype("float32")
+                local_sampled_values20 = np.array(list(src20.sample(coordinates))).astype("float32")
+
+                if sampled_values10 is None:
+                    sampled_values10 = local_sampled_values10
+                if sampled_values20 is None:
+                    sampled_values20 = local_sampled_values20
+                local_sampled_values10[(local_sampled_values10 == src10.nodata)] = np.nan
+                local_sampled_values20[(local_sampled_values20 == src20.nodata)] = np.nan
+                nanmask10 = ~np.isnan(local_sampled_values10)
+                nanmask20 = ~np.isnan(local_sampled_values20)
+                sampled_values10[nanmask10] = local_sampled_values10[nanmask10]
+                sampled_values20[nanmask20] = local_sampled_values20[nanmask20]
+
+    profile = pd.concat(
+        [
+            pd.DataFrame(sampled_values10, columns=band_names10),
+            pd.DataFrame(sampled_values20, columns=band_names20),
+            pd.DataFrame(coordinates, columns=["x", "y"])
+        ],
+        axis=1
+    )
+
+    profile.insert(0, "distance_m", distances)
+    profile.insert(1, "distance_km", distances / 1000)
+
+    scl = profile["SCL SceneClassification"]
+    if sample_class is not None:
+        profile = profile[(scl==sample_class)]
+    return profile
