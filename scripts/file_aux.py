@@ -3,7 +3,10 @@ import numpy as np
 import rasterio
 import os
 import pandas as pd
-import geopandas as gpd
+from zipfile import ZipFile
+import shutil
+import re
+from pathlib import Path
 from rasterio.enums import Resampling
 from rasterio.merge import merge
 from rasterio.vrt import WarpedVRT
@@ -161,22 +164,21 @@ def process_resolution_for_aoi(
     band_files,
     aoi_name,
     aoi_geometry,
-    resolution_label,
+    resolution,
     bands,
     output_root,
     target_crs="EPSG:3035"
 ):
 
-    resolutions = {
-        "10m": 10,
-        "20m": 20
-    }
-
     nodata_value = 0
 
-    resolution = resolutions[resolution_label]
+    resolution_label = f"{resolution}m"
 
     aoi_output_folder = output_root / date_text / aoi_name
+
+    if (aoi_output_folder / f"{resolution_label}_Stack.tif").exists():
+        print(f"Stack file already exists for AOI {aoi_name} and resolution {resolution_label}. Skipping processing.")
+        return
 
     created_band_files = []
 
@@ -225,13 +227,10 @@ def process_resolution_for_aoi(
         nodata_value=nodata_value
     )
 
-def sample_points(data_dir, line_geometry, sample_spacing, sample_class=6):
+def sample_points(data_dir, line_geometry, sample_spacing, sample_class, band_names10, band_names20):
     stack_files10 = [data_dir / segment / "10m_Stack.tif" for segment in os.listdir(data_dir)]
     stack_files20 = [data_dir / segment / "20m_Stack.tif" for segment in os.listdir(data_dir)]
     stack_files = zip(stack_files10, stack_files20)
-
-    band_names10 = ["B02 Blue", "B03 Green", "B04 Red", "B08 NIR"]
-    band_names20 = ["B05 RedEdge1", "B11 SWIR1", "SCL SceneClassification"]
 
     line_length = line_geometry.length
 
@@ -278,3 +277,33 @@ def sample_points(data_dir, line_geometry, sample_spacing, sample_class=6):
     if sample_class is not None:
         profile = profile[(scl==sample_class)]
     return profile
+
+def extract_bands_from_zip(date, tile, zip_filename, bands10, bands20):
+    temp_dir = Path(f"raw_data/tmp/{date}_{tile}")
+    extracted_dir = Path(f"raw_data/extracted/{date}_{tile}")
+    if extracted_dir.exists():
+        print(f"Extracted directory already exists for {date}_{tile}. Skipping extraction.")
+        return
+    with ZipFile(f"raw_data/{zip_filename}", 'r') as zip_ref:
+        zip_ref.extractall(temp_dir)
+
+    data_dir = temp_dir / zip_filename[:-4] / "GRANULE"
+    data_dir = data_dir / os.listdir(data_dir)[0] / "IMG_DATA"
+    data10_dir = data_dir / "R10m"
+    data20_dir = data_dir / "R20m"
+    datafiles10 = os.listdir(data10_dir)
+    datafiles20 = os.listdir(data20_dir)
+    date_tile_dir = Path(f"raw_data/extracted/{date}_{tile}")
+    (date_tile_dir / "R10m").mkdir(parents=True, exist_ok=True)
+    (date_tile_dir / "R20m").mkdir(parents=True, exist_ok=True)
+    for file in datafiles10:
+        band = file[-11:-8]
+        if band in bands10:
+            data_output_path = date_tile_dir / "R10m" / f"{band}_10m.jp2"
+            shutil.copy(data10_dir / file, data_output_path)
+    for file in datafiles20:
+        band = file[-11:-8]
+        if band in bands20:
+            data_output_path = date_tile_dir / "R20m" / f"{band}_20m.jp2"
+            shutil.copy(data20_dir / file, data_output_path)
+    shutil.rmtree(temp_dir)

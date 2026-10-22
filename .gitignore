@@ -3,3 +3,4 @@ raw_data/
 tmp*
 __pycache__/
 *.pyc
+figures/ndci_maps/

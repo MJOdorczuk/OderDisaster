@@ -3,14 +3,15 @@ from matplotlib import pyplot as plt
 from rasterio.plot import show
 from pyproj import Transformer
 import numpy as np
+from matplotlib_map_utils import ScaleBar, scale_bar
 
-def plot_background_map(title, limits, target_crs, grid_step = 1.0):
+def plot_background_map(title, limits, target_crs, grid_step = 1.0, darkening_factor = 0.5):
     fig, ax = plt.subplots(figsize=(12, 10))
     ax.set_axis_off()
     ax.set_title(title)
     ax.set_facecolor("black")
     with rasterio.open("figures/poland_satellite_background.tif") as src:
-        show(src, ax=ax, alpha=0.4)
+        show(src, ax=ax, alpha=darkening_factor)
 
 
     transformer = Transformer.from_crs("EPSG:4326", target_crs, always_xy=True,)
@@ -102,4 +103,12 @@ def plot_background_map(title, limits, target_crs, grid_step = 1.0):
     )
 
     plt.tight_layout()
+    scale_bar(ax=ax, location="lower right", style="boxes", bar={"projection":target_crs[-4:],"minor_type":"none"}, labels={"style":"first_last"})
     return fig, ax
+
+def plot_spectra_labels(wavelengths, band_names, ax):
+    ax.set_xlabel("Wavelength (nm)")
+    ax.set_ylabel("Normalised reflectance")
+    for i in range(len(wavelengths)):
+        ax.axvline(x=wavelengths[i], color='gray', linestyle='--', alpha=0.5)
+        ax.text(wavelengths[i], ax.get_ylim()[0], band_names[i], rotation=90, verticalalignment='bottom', horizontalalignment='center', fontsize=12)
