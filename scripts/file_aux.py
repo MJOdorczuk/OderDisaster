@@ -15,6 +15,7 @@ from shapely.geometry import box
 from shapely.ops import unary_union
 from rasterio.windows import Window
 from rasterio.windows import transform as window_transform
+from rasterio.warp import reproject, Resampling
 
 def create_masked_band_mosaic(
     input_files,
@@ -272,6 +273,7 @@ def sample_points(data_dir, line_geometry, sample_spacing, sample_class, band_na
 
     profile.insert(0, "distance_m", distances)
     profile.insert(1, "distance_km", distances / 1000)
+    # profile.insert(2, "distance_km_from_source", sample_to_length_km(distances / 1000))
 
     scl = profile["SCL SceneClassification"]
     if sample_class is not None:
@@ -307,3 +309,82 @@ def extract_bands_from_zip(date, tile, zip_filename, bands10, bands20):
             data_output_path = date_tile_dir / "R20m" / f"{band}_20m.jp2"
             shutil.copy(data20_dir / file, data_output_path)
     shutil.rmtree(temp_dir)
+
+
+def stacks_to_dataframe(
+    stack_10m_path,
+    bands_10m,
+    stack_20m_path,
+    bands_20m,
+    scl_band_name="SCL",
+    normalise_factor=10_000.0
+):
+    stack_10m_path = Path(stack_10m_path)
+    stack_20m_path = Path(stack_20m_path)
+
+    data = {}
+
+    with rasterio.open(stack_10m_path) as src_10m:
+        target_height = src_10m.height
+        target_width = src_10m.width
+        target_transform = src_10m.transform
+        target_crs = src_10m.crs
+
+        for name, band_index in bands_10m.items():
+            band = src_10m.read(band_index).astype(np.float32) / normalise_factor
+
+            if src_10m.nodata is not None:
+                band[band == src_10m.nodata] = np.nan
+
+            data[name] = band.ravel()
+
+        rows, cols = np.indices((target_height, target_width))
+
+        xs, ys = rasterio.transform.xy(
+            target_transform,
+            rows,
+            cols,
+            offset="center",
+        )
+
+        data["x"] = np.asarray(xs).ravel()
+        data["y"] = np.asarray(ys).ravel()
+
+    with rasterio.open(stack_20m_path) as src_20m:
+        for name, band_index in bands_20m.items():
+            source = src_20m.read(band_index)
+
+            if name == scl_band_name:
+                resampling_method = Resampling.nearest
+            else:
+                source = source.astype(np.float32) / normalise_factor
+                resampling_method = Resampling.bilinear
+
+            destination = np.full(
+                (target_height, target_width),
+                np.nan,
+                dtype=np.float32,
+            )
+
+            reproject(
+                source=source,
+                destination=destination,
+                src_transform=src_20m.transform,
+                src_crs=src_20m.crs,
+                src_nodata=src_20m.nodata,
+                dst_transform=target_transform,
+                dst_crs=target_crs,
+                dst_nodata=np.nan,
+                resampling=resampling_method,
+            )
+
+            data[name] = destination.ravel()
+
+    df = pd.DataFrame(data)
+
+    df = df.dropna(subset=list(bands_10m.keys()), how="all")
+
+    if scl_band_name in df.columns:
+        df[scl_band_name] = df[scl_band_name].round().astype("Int16")
+
+    return df, f"{target_crs}"

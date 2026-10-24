@@ -3,10 +3,13 @@ from matplotlib import pyplot as plt
 from rasterio.plot import show
 from pyproj import Transformer
 import numpy as np
-from matplotlib_map_utils import ScaleBar, scale_bar
+from matplotlib_map_utils import scale_bar
 
-def plot_background_map(title, limits, target_crs, grid_step = 1.0, darkening_factor = 0.5):
-    fig, ax = plt.subplots(figsize=(12, 10))
+def plot_background_map(title, limits, target_crs, grid_step = 1.0, darkening_factor = 0.5, fig_ax=None):
+    if fig_ax is None:
+        fig, ax = plt.subplots(figsize=(12, 10))
+    else:
+        fig, ax = fig_ax
     ax.set_axis_off()
     ax.set_title(title)
     ax.set_facecolor("black")
@@ -52,7 +55,7 @@ def plot_background_map(title, limits, target_crs, grid_step = 1.0, darkening_fa
         ax.plot(x, y, color="white", linewidth=0.6, alpha=0.45, linestyle="--", zorder=2)
 
         # Label longitude near the southern map boundary.
-        label_x, label_y = to_map.transform(lon, south)
+        label_x, label_y = to_map.transform(lon, north)
         ax.text(
             label_x,
             label_y,
@@ -102,7 +105,6 @@ def plot_background_map(title, limits, target_crs, grid_step = 1.0, darkening_fa
         bbox={"facecolor": "black", "alpha": 0.85, "pad": 3},
     )
 
-    plt.tight_layout()
     scale_bar(ax=ax, location="lower right", style="boxes", bar={"projection":target_crs[-4:],"minor_type":"none"}, labels={"style":"first_last"})
     return fig, ax
 
