@@ -4,4 +4,4 @@ This repository contains the analytical pipeline for the research about the 2022
 
 The project is developed as a part of the curriculum for the course [GEO4515 - Remote Sensing of the Earth's surface](https://www.uio.no/studier/emner/matnat/geofag/GEO4515/index.html) at the University of Oslo. The project is authored by Michał Jan Odorczuk and Anna Wojciechowska.
 
-The project is still ongoing, thus not all analysis and results are available yet. Check side branches for the in-progress files.
+The project is still ongoing, thus, not all the analysis and results are available yet. Check side branches for the in-progress files.
