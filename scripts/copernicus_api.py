@@ -16,14 +16,14 @@ download_base_url = (
 BEGINHOUR = "T00:00:00.000Z"
 END_HOUR = "T23:59:59.999Z"
 
-def get_access_token():
+def get_access_token(user_id, user_secret):
     """Request an OAuth access token from Copernicus Data Space."""
 
     # Use credentials stored in local files
     # Code smell? Should those be passed as arguments?
-    with open("./local/id", "r") as f:
+    with open(user_id, "r") as f:
         id = f.read().strip()
-    with open("./local/secret", "r") as f:
+    with open(user_secret, "r") as f:
         secret = f.read().strip()
 
     response = requests.post(

@@ -114,3 +114,7 @@ def plot_spectra_labels(wavelengths, band_names, ax):
     for i in range(len(wavelengths)):
         ax.axvline(x=wavelengths[i], color='gray', linestyle='--', alpha=0.5)
         ax.text(wavelengths[i], ax.get_ylim()[0], band_names[i], rotation=90, verticalalignment='bottom', horizontalalignment='center', fontsize=12)
+
+def normalise_rgb(rgb):
+    low, high = np.percentile(rgb, (2, 98))
+    return np.clip((rgb - low) / (high - low), 0, 1)

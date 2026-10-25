@@ -5,9 +5,8 @@ import os
 import pandas as pd
 from zipfile import ZipFile
 import shutil
-import re
+import json5 as json
 from pathlib import Path
-from rasterio.enums import Resampling
 from rasterio.merge import merge
 from rasterio.vrt import WarpedVRT
 from rasterio.features import geometry_mask
@@ -16,6 +15,8 @@ from shapely.ops import unary_union
 from rasterio.windows import Window
 from rasterio.windows import transform as window_transform
 from rasterio.warp import reproject, Resampling
+import math
+from rasterio.transform import from_origin
 
 def create_masked_band_mosaic(
     input_files,
@@ -275,7 +276,7 @@ def sample_points(data_dir, line_geometry, sample_spacing, sample_class, band_na
     profile.insert(1, "distance_km", distances / 1000)
     # profile.insert(2, "distance_km_from_source", sample_to_length_km(distances / 1000))
 
-    scl = profile["SCL SceneClassification"]
+    scl = profile["SCL"]
     if sample_class is not None:
         profile = profile[(scl==sample_class)]
     return profile
@@ -388,3 +389,66 @@ def stacks_to_dataframe(
         df[scl_band_name] = df[scl_band_name].round().astype("Int16")
 
     return df, f"{target_crs}"
+
+def read_parameters(metadata_dir):
+    parameters = json.load(open(metadata_dir, "r"))
+    return parameters
+
+
+def aligned_grid(bounds, resolution=100):
+    left = math.floor(bounds.left / resolution) * resolution
+    bottom = math.floor(bounds.bottom / resolution) * resolution
+    right = math.ceil(bounds.right / resolution) * resolution
+    top = math.ceil(bounds.top / resolution) * resolution
+
+    width = int(round((right - left) / resolution))
+    height = int(round((top - bottom) / resolution))
+
+    transform = from_origin(left, top, resolution, resolution)
+
+    return transform, width, height
+
+def downsample(input_file, output_file, resampling=Resampling.average, resolution=100):
+    input_file = Path(input_file)
+    output_file = Path(output_file)
+
+    with rasterio.open(input_file) as src:
+        dst_transform, dst_width, dst_height = aligned_grid(
+            src.bounds,
+            resolution=resolution
+        )
+
+        profile = src.profile.copy()
+        profile.update(
+            width=dst_width,
+            height=dst_height,
+            transform=dst_transform,
+            compress="deflate",
+            tiled=True,
+            BIGTIFF="IF_SAFER",
+        )
+
+        nodata = src.nodata
+
+        with rasterio.open(output_file, "w", **profile) as dst:
+            for band_index in range(1, src.count + 1):
+                destination = np.full(
+                    (dst_height, dst_width),
+                    nodata,
+                    dtype=src.dtypes[band_index - 1],
+                )
+
+                reproject(
+                    source=rasterio.band(src, band_index),
+                    destination=destination,
+                    src_transform=src.transform,
+                    src_crs=src.crs,
+                    src_nodata=nodata,
+                    dst_transform=dst_transform,
+                    dst_crs=src.crs,
+                    dst_nodata=nodata,
+                    resampling=resampling,
+                    num_threads=2,
+                )
+
+                dst.write(destination, band_index)
