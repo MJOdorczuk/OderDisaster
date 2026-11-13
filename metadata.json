@@ -9,18 +9,21 @@
         "T33UXS"  // Source to Opole segment
     ],
     "dates": [
-        "2022-08-16", // Little cloud cover over lower Oder around the peak
-        "2022-08-11", // Little cloud cover from Ścinawa down
-        "2022-08-15", // Little cloud cover for upper Oder (down to Wrocław)
-        "2022-08-26", // Acceptable cloud cover for lower Oder
+        "2019-08-25", // Clear sky summer before bloom
+        "2020-08-11", // Clear sky summer before bloom
+        "2020-08-16", // Clear sky summer before bloom
+        "2022-02-12", // Clear skies over lower Oder with no bloom
+        "2022-07-19",  // Clear skies over middle and upper Oder right before the bloom
+        "2022-07-20", // Clear skies over lower Oder right before the bloom
         "2022-08-03", // Almost clear skies for central Oder
         "2022-08-04", // Szczecin and the lagoon only
         "2022-08-05", // Little cloud cover for upper Oder (down to Wrocław)
-        "2022-02-12", // Clear skies over lower Oder with no bloom
-        "2020-08-11", // Clear sky summer before bloom
+        "2022-08-11", // Little cloud cover from Ścinawa down
+        "2022-08-15", // Little cloud cover for upper Oder (down to Wrocław)
+        "2022-08-16", // Little cloud cover over lower Oder around the peak
+        "2022-08-26", // Acceptable cloud cover for lower Oder
         "2022-09-05", // Somewhat clear skies over lower Oder
-        "2022-07-20", // Clear skies over lower Oder right before the bloom
-        "2022-07-19"  // Clear skies over middle and upper Oder right before the bloom
+        "2023-08-24", // Somewhat clear skies over estuary year after
     ],
     "MAP_CRS": "EPSG:3035", // Legacy projection, not the most suited, but a few things already depend on it and it is sufficient
     "objects": {
@@ -30,7 +33,9 @@
     "API": {
         "SentinelHub": { // Not to be shared in the repositorys
             "client_id": "local/id",
-            "client_secret": "local/secret"
+            "client_secret": "local/secret",
+            "client_username": "local/username",
+            "client_password": "local/password"
         }
     },
     "data_directories" : {

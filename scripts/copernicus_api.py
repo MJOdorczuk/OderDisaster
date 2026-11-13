@@ -31,13 +31,33 @@ def get_access_token(user_id, user_secret):
         data={
             "grant_type": "client_credentials",
             "client_id": id,
-            "client_secret": secret
+            "client_secret": secret,
+            "audience": "https://download.dataspace.copernicus.eu",
         },
         timeout=60
     )
 
     response.raise_for_status()
 
+    return response.json()["access_token"]
+
+def get_cdse_public_token(username_file, password_file):
+    with open(username_file, "r") as f:
+        username = f.read().strip()
+    with open(password_file, "r") as f:
+        password = f.read().strip()
+    response = requests.post(
+        token_url,
+        data={
+            "grant_type": "password",
+            "client_id": "cdse-public",
+            "username": username,
+            "password": password,
+        },
+        timeout=60,
+    )
+
+    response.raise_for_status()
     return response.json()["access_token"]
 
 def search_tile(tile, token, date):
