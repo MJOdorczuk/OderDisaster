@@ -118,13 +118,22 @@ def plot_background_map(title, limits, target_crs, grid_step = 1.0, darkening_fa
     return fig, ax
 
 
-def plot_spectra_labels(wavelengths, band_names, ax, fontsize=10):
+def plot_spectra_labels(wavelengths, band_widths, band_names, ax, fontsize=10):
     ax.set_xlabel("Wavelength (nm)")
     ax.set_ylabel("Normalised reflectance")
     for i in range(len(wavelengths)):
-        ax.axvline(x=wavelengths[i], color='gray', linestyle='--', alpha=0.5)
-        ax.text(wavelengths[i], ax.get_ylim()[0], band_names[i], rotation=90, verticalalignment='bottom', horizontalalignment='center', fontsize=fontsize)
+        wl, width, name = wavelengths[i], band_widths[i], band_names[i]
+        left, right = wl - width / 2, wl + width / 2
+        ax.axvline(x=wl, color='gray', linestyle='--', alpha=0.5)
+        ax.text(wl, ax.get_ylim()[0], name, rotation=90, verticalalignment='bottom', horizontalalignment='center', fontsize=fontsize)
+        ax.axvspan(left, right, color="grey", alpha=0.2, zorder=0)
 
 def normalise_rgb(rgb):
     low, high = np.percentile(rgb, (2, 98))
     return np.clip((rgb - low) / (high - low), 0, 1)
+
+def mask_in_box(df, crs, limits):
+    north, east, south, west = limits
+    transformer = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
+    lon, lat = transformer.transform(df["x"].to_numpy(), df["y"].to_numpy())
+    return (lat >= south) & (lat <= north) & (lon >= west) & (lon <= east)

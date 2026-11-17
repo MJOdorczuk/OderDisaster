@@ -67,6 +67,22 @@
             "B12": 2190,
             "SCL": -1 // special class, scene classification layer
         },
+        "wavelength_bandwidths": {
+            "B01": 20,
+            "B02": 65,
+            "B03": 35,
+            "B04": 30,
+            "B05": 15,
+            "B06": 15,
+            "B07": 20,
+            "B08": 115,
+            "B8A": 20,
+            "B09": 20,
+            "B10": 30,
+            "B11": 90,
+            "B12": 180,
+            "SCL": -1 // special class, scene classification layer
+        },
         "descriptions": { // AI-generated descriptions, verify they are valid
             "B01": "Coastal aerosol",
             "B02": "Blue",
